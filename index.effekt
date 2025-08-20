@@ -4,22 +4,24 @@ import stringbuffer
 
 effect render(): Unit
 
+extern type State[T]
+
 def main() = {
   mount("app"){view}
 }
 
 def view(): String  =
-  val counter = state[Int](0)
+  with val counter = state(0)
 
   val up = button("+") {
-    counter.set(counter.get[Int] + 1)
+    counter.set(counter.get + 1)
   }
 
   val down = button("-") {
-    counter.set(counter.get[Int] - 1)
+    counter.set(counter.get - 1)
   }
 
-  s"<p>${counter.get[Int].show}</p>${up}${down}"
+  s"<p>${counter.get.show}</p>${up}${down}"
 
 def mount(rootId: String){app: => String}: Unit = {
   internal::installRender(rootId){app};
@@ -31,25 +33,15 @@ def button(label: String){ onClick: => Unit / render }: String = {
   s"<button onclick='window.$index.__handlers[${handlerId.show}]()'>${label}</button>"
 }
 
-extern def state[T](init: T): Int =
-  jsWeb """(function(init) {
-      window.$index = window.$index || {};
-      window.$index.__state  = window.$index.__state  || [];
-      window.$index.__cursor = (typeof window.$index.__cursor === 'number') ? window.$index.__cursor : 0;
+def state[T, R](init: T){p: State[T] => R}: R = {
+  val id = internal::installState(init)
+  p(id)
+}
 
-      var i = window.$index.__cursor;
-      if (typeof window.$index.__state[i] === 'undefined') {
-        window.$index.__state[i] = init;
-      }
-      window.$index.__cursor = i + 1;
-      return i;
-    })(${init})
-  """
-
-extern def get[T](id: Int): T =
+extern def get[T](id: State[T]): T =
   jsWeb """(function(id){ return window.$index.__state[id]; })(${id})"""
 
-def set[T](id: Int, value: T): Unit / render = {
+def set[T](id: State[T], value: T): Unit / render = {
   internal::jsSetState(id, value);
   do render()
 }
@@ -85,8 +77,23 @@ namespace internal {
   private extern def render(): Unit =
     jsWeb "window.$index.rerender()"
 
-  private extern def jsSetState[T](id: Int, value: T): Unit =
+  private extern def jsSetState[T](id: State[T], value: T): Unit =
     jsWeb """(function(id, value){ window.$index.__state[id] = value; })(${id}, ${value})"""
+
+  private extern def installState[T](init: T): State[T] =
+    jsWeb """(function(init) {
+        window.$index = window.$index || {};
+        window.$index.__state  = window.$index.__state  || [];
+        window.$index.__cursor = (typeof window.$index.__cursor === 'number') ? window.$index.__cursor : 0;
+
+        var i = window.$index.__cursor;
+        if (typeof window.$index.__state[i] === 'undefined') {
+          window.$index.__state[i] = init;
+        }
+        window.$index.__cursor = i + 1;
+        return i;
+      })(${init})
+    """
 
   private extern def installHandler{f: => Unit}: Int =
     jsWeb """(function(f) {
