@@ -1,0 +1,91 @@
+module index
+
+import stringbuffer
+
+effect render(): Unit
+
+def html = s
+
+def mount(rootId: String){app: => String}: Unit = {
+  internal::installRender(rootId){app};
+  internal::render()
+}
+
+namespace internal {
+  private extern def patchDOM(id: String, html: String): Unit =
+    jsWeb """(function(id, html) {
+        const el = document.getElementById(id);
+        if (!el.__mounted) { el.innerHTML = html; el.__mounted = true; return; }
+        morphdom(el, html);
+      })(${id}, ${html})
+    """
+
+  private extern def installRender(rootId: String){app: => String}: Unit =
+    jsWeb """(function(id, app) {
+        window.$index.rerender = function () {
+          var html = app();
+          const el = document.getElementById(id);
+          if (!el.__mounted) { el.innerHTML = html; el.__mounted = true; return; }
+          morphdom(el, html);
+        };
+      })(${rootId}, ${box app})
+    """
+
+  private extern def render(): Unit =
+    jsWeb "window.$index.rerender()"
+
+
+  private extern def jsSetState[T](id: Int, value: T): Unit =
+    jsWeb "window.$index.__state[${id}] = ${value}"
+
+
+  private extern def installHandler{f: => Unit}: Int =
+    jsWeb """(function(f) {
+        window.$index.__handlers = window.__handlers || [];
+        var id = window.__handlers.length;
+        window.$index.__handlers.push(f);
+        return id;
+      })(${box f})
+    """
+}
+
+def handler {f: => Unit / render}: Int = {
+  with internal::installHandler
+  try {
+    f()
+  } with render {
+    internal::render()
+  }
+}
+
+extern def state[T](init: T): Int =
+  jsWeb """(function(init) {
+      window.$index.__state = window.$index.__state || [];
+      var id = window.$index.__state.length;
+      window.$index.__state.push(init);
+      return id;
+    })(${init})
+  """
+
+extern def get[T](id: Int): T =
+  jsWeb "window.$index.__state[${id}]"
+
+def set[T](id: Int, value: T): Unit / render = {
+  internal::jsSetState(id, value);
+  do render()
+}
+
+def button(label: String){ onClick: => Unit / render }: String = {
+  val handlerId = handler { onClick };
+  html"<button onclick='window.$index.__handlers[${handlerId.show}]()'>${label}</button>"
+}
+
+def view(): String  =
+  val counter = state[Int](0)
+  button(s"Counter: ${get[Int](counter).show}") {
+    set(counter, get[Int](counter) + 1)
+  }
+
+def main() = {
+  mount("app"){view}
+}

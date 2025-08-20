@@ -1,0 +1,19 @@
+{
+    "name": "effekt-ui",
+    "private": true,
+    "version": "0.1.0",
+    "description": "Lightweight UI library for Effekt",
+    "scripts": {
+        "prebundle": "effekt --backend js-web index.effekt",
+        "bundle": "webpack",
+        "build": "npm run bundle"
+    },
+    "dependencies": {
+        "morphdom": "^2.7.7"
+    },
+    "devDependencies": {
+        "html-webpack-plugin": "^5.5.3",
+        "webpack": "^5.93.0",
+        "webpack-cli": "^5.1.4"
+    }
+}
