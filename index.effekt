@@ -10,8 +10,8 @@ def main() = {
 
 def view(): String  =
   val counter = state[Int](0)
-  button(s"Counter: ${get[Int](counter).show}") {
-    set(counter, get[Int](counter) + 1)
+  button(s"Counter: ${counter.get[Int].show}") {
+    counter.set(counter.get[Int] + 1)
   }
 
 def mount(rootId: String){app: => String}: Unit = {
