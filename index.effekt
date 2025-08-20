@@ -4,11 +4,51 @@ import stringbuffer
 
 effect render(): Unit
 
-def html = s
+def main() = {
+  mount("app"){view}
+}
+
+def view(): String  =
+  val counter = state[Int](0)
+  button(s"Counter: ${get[Int](counter).show}") {
+    set(counter, get[Int](counter) + 1)
+  }
+
 
 def mount(rootId: String){app: => String}: Unit = {
   internal::installRender(rootId){app};
   internal::render()
+}
+
+def button(label: String){ onClick: => Unit / render }: String = {
+  val handlerId = handler { onClick };
+  s"<button onclick='window.$index.__handlers[${handlerId.show}]()'>${label}</button>"
+}
+
+extern def state[T](init: T): Int =
+  jsWeb """(function(init) {
+      window.$index.__state = window.$index.__state || [];
+      var id = window.$index.__state.length;
+      window.$index.__state.push(init);
+      return id;
+    })(${init})
+  """
+
+extern def get[T](id: Int): T =
+  jsWeb "window.$index.__state[${id}]"
+
+def set[T](id: Int, value: T): Unit / render = {
+  internal::jsSetState(id, value);
+  do render()
+}
+
+def handler {f: => Unit / render}: Int = {
+  with internal::installHandler
+  try {
+    f()
+  } with render {
+    internal::render()
+  }
 }
 
 namespace internal {
@@ -47,45 +87,4 @@ namespace internal {
         return id;
       })(${box f})
     """
-}
-
-def handler {f: => Unit / render}: Int = {
-  with internal::installHandler
-  try {
-    f()
-  } with render {
-    internal::render()
-  }
-}
-
-extern def state[T](init: T): Int =
-  jsWeb """(function(init) {
-      window.$index.__state = window.$index.__state || [];
-      var id = window.$index.__state.length;
-      window.$index.__state.push(init);
-      return id;
-    })(${init})
-  """
-
-extern def get[T](id: Int): T =
-  jsWeb "window.$index.__state[${id}]"
-
-def set[T](id: Int, value: T): Unit / render = {
-  internal::jsSetState(id, value);
-  do render()
-}
-
-def button(label: String){ onClick: => Unit / render }: String = {
-  val handlerId = handler { onClick };
-  html"<button onclick='window.$index.__handlers[${handlerId.show}]()'>${label}</button>"
-}
-
-def view(): String  =
-  val counter = state[Int](0)
-  button(s"Counter: ${get[Int](counter).show}") {
-    set(counter, get[Int](counter) + 1)
-  }
-
-def main() = {
-  mount("app"){view}
 }
