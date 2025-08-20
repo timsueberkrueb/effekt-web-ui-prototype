@@ -10,9 +10,16 @@ def main() = {
 
 def view(): String  =
   val counter = state[Int](0)
-  button(s"Counter: ${counter.get[Int].show}") {
+
+  val up = button("+") {
     counter.set(counter.get[Int] + 1)
   }
+
+  val down = button("-") {
+    counter.set(counter.get[Int] - 1)
+  }
+
+  s"<p>${counter.get[Int].show}</p>${up}${down}"
 
 def mount(rootId: String){app: => String}: Unit = {
   internal::installRender(rootId){app};
