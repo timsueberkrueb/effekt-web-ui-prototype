@@ -28,7 +28,10 @@ def mount(rootId: String){app: => String}: Unit = {
   internal::render()
 }
 
-def button(label: String){ onClick: => Unit / render }: String = {
+// There is currently no way to restrict captures on blocks.
+// We just pretend onClick can only capture {io}, s.t. it is stack-safe.
+// We could use a boxed function instead, but a lot of the language ergonomics are designed around 2nd class blocks.
+def button(label: String){ onClick/* at {io} */: => Unit / render }: String = {
   val handlerId = handler { onClick };
   s"<button onclick='window.$index.__handlers[${handlerId.show}]()'>${label}</button>"
 }
